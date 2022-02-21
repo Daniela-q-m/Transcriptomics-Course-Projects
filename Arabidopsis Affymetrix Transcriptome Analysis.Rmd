@@ -30,13 +30,114 @@ library(GEOquery)
 ```
 
 ```{r}
-gse=getGEO("GSE38102")
+gse<-getGEO("GSE38102") #Obtain dataset
 ```
 ```{r}
-arabidopsis=gse$`GSE38102-GPL198_series_matrix.txt.gz`
+arabidopsis<-gse$`GSE38102-GPL198_series_matrix.txt.gz` #get arabidopsis dataset
 ```
 
 ```{r}
+arabidopsis$`tissue:ch1` #What tissues were analyzed?
+arabidopsis$`treated with:ch1` #What chemicals were the tissues treated with?
+#KCl and KNO3 were the control and experimental substances
+arabidopsis$geo_accession #Sample names/column names
+#Create a new dataframe, each column can be the geo accession column and rows can be the tissue
+```
+```{r}
+#Crete dataframe 
+expdesign<-data.frame(sample=arabidopsis$geo_accession,
+                      tissue=arabidopsis$`tissue:ch1`,
+                      treatment=arabidopsis$`treated with:ch1`)
+expdesign
+```
+```{r}
+expvalues<-exprs(arabidopsis) #Row is probe identifier
+head(expvalues)
 
+```
+```{r}
+#Identify genes that are differentially expressed
+#Look at the data processing documentation, data has been normalized
+arabidopsis$data_processing
+```
+```{r}
+#Visualize the data
+library(ggplot2)
+library('reshape2')
+#expvalues2<-stack(expvalues)
+#expvalues2
+#boxplot1<-ggplot(stack(expvalues), aes(x = ind, y = values)) +geom_boxplot()
+#expvalues[,1:4]
+
+```
+```{r}
+boxplot(expvalues) #Shos that the data has been normalized
+#Medians line up nicely
+```
+```{r}
+#Remove genes with low expression
+#Affymetrix annotates genes as 'A'
+#Visualize gene expression values with histogram
+library(ggplot2)
+stack(expvalues)
+bp<-ggplot(stack(expvalues), aes(x = ind, y = values))+ geom_boxplot()+
+bp
+```
+```{r}
+hist(expvalues,breaks=100)
+abline(v=4.3,col="red") #Any value below 4.3 is too close to background expression noise
+#Filter values by expression
+lowexplogic<-expvalues<=4.3
+lowexpsum<-apply(lowexplogic,1,sum) 
+filteredvalues<-expvalues[lowexpsum<4,]
+dim(filteredvalues) #How many rows and columns are in the filtered dataset
+```
+Two tissues: Roots and shoots. Two treatments, KCl, KNO3. Two way ANOVA can identify which factor leads to differentially expressed genes. 
+```{r}
+#Create a function to perform ANOVA analysis
+#Function expects one vector and two factors
+ANOVA_function<-function(expvalues, expgroup1,expgroup2){
+  mod_lm<-lm(expvalues~expgroup1*expgroup2)
+    mod_lmsum<-summary(mod_lm)
+    pval<-pf(mod_lmsum$fstatistic[1],mod_lmsum$fstatistic[2],
+             mod_lmsum$fstatistic[3], lower.tail=F)
+    return(c(mod_lmsum$coefficients[,4],pval))
+}
+```
+```{r}
+#Apply function to filtered values based on tissue and treatment
+#Apply function to every row
+anovapvalues<-apply(filteredvalues,1,ANOVA_function,
+                    expdesign$tissue,expdesign$treatment) 
+anovapvalues<-t(anovapvalues)
+head(anovapvalues)
+```
+```{r}
+# Correct for multiple hypothesis testing with FDR
+dim(anovapvalues)
+adjustedp<-p.adjust(anovapvalues[,5],method="fdr")
+sum(adjustedp<0.05) #About 4,000 genes had differential expression due to originating tissue OR treatment
+```
+Identify tissues that have a significant fold change.
+```{r}
+log_fold_change<-function(expvalues,expgroup1, expgroup2){
+  expgroup1mean<-diff(tapply(expvalues,expgroup1, mean))
+  expgroup2mean<-diff(tapply(expvalues,expgroup2,mean))
+  return(max(expgroup1mean,expgroup2mean))
+}
+```
+```{r}
+log_fold_change_vals<-apply(filteredvalues,1,log_fold_change,
+                            expdesign$tissue,expdesign$treatment)
+log_fold_change_vals<-t(log_fold_change_vals)
+```
+
+```{r}
+sum(log_fold_change_vals>= log2(1.5)) #3281 have a significant fold change 
+```
+```{r}
+#Obtain genes from filtered values where the log fold change is greater than log 1.5 and adjusted p values is less than 0.05
+sum(log_fold_change_vals>=log2(1.5) & adjustedp<0.05)
+diffexpgenes<-filteredvalues[log_fold_change_vals>=log2(1.5) & adjustedp<0.05,]
 ```
 
