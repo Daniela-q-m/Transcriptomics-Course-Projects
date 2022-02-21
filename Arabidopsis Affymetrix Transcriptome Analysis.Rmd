@@ -1,0 +1,42 @@
+---
+title: "Affymetrix Microarray, Arabidopsis Analysis"
+output: html_notebook
+---
+
+```{r}
+install.packages("BiocManager")
+```
+
+```{r}
+BiocManager::install("GOstats")
+BiocManager::install("GEOquery")
+BiocManager::install("GO.db")
+BiocManager::install("Category")
+BiocManager::install("ath1121501.db")
+BiocManager::install("AnnotationDbi")
+BiocManager::install("annotate")
+```
+
+
+```{r}
+
+install.packages("https://cran.r-project.org/src/contrib/Archive/rlang/rlang_1.0.0.tar.gz", repo=NULL, type="source")
+```
+```{r}
+BiocManager::install("GEOquery")
+```
+```{r}
+library(GEOquery)
+```
+
+```{r}
+gse=getGEO("GSE38102")
+```
+```{r}
+arabidopsis=gse$`GSE38102-GPL198_series_matrix.txt.gz`
+```
+
+```{r}
+
+```
+
