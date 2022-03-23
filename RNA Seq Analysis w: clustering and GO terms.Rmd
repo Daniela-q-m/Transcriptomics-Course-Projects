@@ -1,0 +1,37 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r}
+install.packages("dplyr")
+
+```
+
+```{r}
+#Load the file GSE124548.raw.txt and create a new dataframe with just the columns with the raw counts for healthy (HC) and CF patients before treatment (Base) and call it readcount. Use the third column (EntrezID) in the original file as the rownames of readcount.
+df=read.table('/Users/danielaquijano/Documents/GitHub/Transcriptomics-Course-Projects/source_files/GSE124548.raw.fixed.txt', sep = '\t',header =TRUE)
+df
+```
+
+```{r}
+library(dplyr) 
+HC=select(df, contains('HC', ignore.case = TRUE, vars = NULL))
+Base=select(df, contains('Base', ignore.case = TRUE, vars = NULL))
+readcount=cbind(HC, Base)
+```
+
+```{r}
+readcount
+```
+```{r}
+
+```
+
+```{r}
+
+```
+
