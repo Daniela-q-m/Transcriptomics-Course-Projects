@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "HW3-RNA-Seq Analysis w/ clustering and GO Enrichment"
 output: html_notebook
 ---
 
@@ -25,13 +25,194 @@ readcount=cbind(HC, Base)
 ```
 
 ```{r}
+rownames(readcount)<-df$EntrezID
 readcount
 ```
 ```{r}
+#Create a dataframe, called expgroup, with one column, labeled condition, that correctly assigns which column is healthy and which is CF. Use the column names of readcount as rownames of expgroup.
+expgroup<-data_frame()
+conditionHC<-rep('Healthy',20,)
+conditionCF<-rep('Cystic Fibrosis',20)
+condition<-c(conditionHC,conditionCF)
+samples<-colnames(readcount)
+expgroup<-cbind(condition)
+rownames(expgroup)<-samples
+```
+
+
+```{r}
+expgroup
+```
+
+
+```{r}
+rownames(expgroup)<-samples
+expgroup
+```
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("DESeq2")
+```
+
+
+```{r}
+library(DESeq2)
+#Load the Deseq2 package ( install if necessary ) and create a Counts Dataset Matrix using the command DESeqDataSetFromMatrix() and call it cds.
+cds <- DESeqDataSetFromMatrix(countData = readcount,
+                              colData = expgroup,
+                              design= ~ condition)
+```
+
+
+```{r}
+cds
+```
+```{r}
+#Use the functions estimateSizeFactors and estimateDispersions so that Deseq2 can correct for size of library and estimates the dispersion. Plot the dispersion using plotDispEsts. What does the graph tell you?
 
 ```
 
 ```{r}
+cds <- estimateSizeFactors(cds)
+cds <- estimateDispersions(cds)
+```
+
+```{r}
+plotDispEsts(cds)
+```
+```{r}
+#Dispersion tells information about the variability in the data. With DESeq2 the dispersion is higher for small mean counts and lower for large mean counts. The idea behind fitting a curve to the data is that different genes will have different scales of biological variability, but, over all genes, there will be a distribution of reasonable estimates of dispersion.This curve is displayed as a red line in the figure below, which plots the estimate for the expected dispersion value for genes of a given expression strength. Shrinking the values toward the curve could result in false positives, so these values are not shrunken. These genes are shown surrounded by blue circles below.
+#You expect your data to generally scatter around the curve, with the dispersion decreasing with increasing mean expression levels.
+```
+```{r}
+sizeFactors(cds)
+```
+```{r}
+#Get the normalized values of the counts data in cds using the counts() function with option normalized=T and call this normvalues.
+normvalues <- counts(cds, normalized=TRUE)
+normvalues
+```
+```{r}
+#Quality control
+rld <- rlog(cds, blind=TRUE)
+```
+
+
+```{r}
+### Plot PCA 
+#Here we can see that cystic fibrosis and healthy samples tend to cluster together and PCA shows separation between the two groups. 
+plotPCA(rld, intgroup="condition")
+```
+```{r}
+rld_matrix <- assay(rld)  #we may not need this
+rld_cor <- cor(rld_matrix)    ## cor() is a base R function
+```
+```{r}
+install.packages("pheatmap")
+library(pheatmap)
 
 ```
+```{r}
+pheatmap(rld_cor,  color=rainbow(50),fontsize_row=6, fontsize_col=5,border_color=NA)
+```
+ #Together, these plots suggest to us that the data are of good quality
+```{r}
+#Perform the Differential expression and obtain the results using DESeq and results functions.
+#Null hypothesis is that there is no differential expression across the two sample groups (LFC == 0).
+# If the p-value is small we reject the null hypothesis and state that there is evidence against the null (i.e. the gene is differentially expressed).
+#To build our results table we will use the results() function. 
+cds <- DESeq(cds)
+
+```
+```{r}
+BiocManager::install("apeglm")a
+
+library(apeglm)
+```
+
+```{r}
+contrastvars <- c("condition", "Healthy", "Cystic Fibrosis")
+results_table<- results(cds, contrast=contrastvars, alpha = 0.05)
+plotMA(res_tableOE_unshrunken, ylim=c(-2,2))
+```
+
+```{r}
+#How many genes have an adjusted p-value of less than 0.05 and log2FoldChange greater than 1 or less than -1 ? Save this list of genes as diffexpgenes
+results_table
+```
+```{r}
+#Column 5 is pvalue, column 2 is log2fold change
+diffexpgenes<-as.data.frame(subset(results_table, results_table[,5] <0.05  & results_table[,2] < -1 | results_table[,2] > 1  ))
+```
+```{r}
+sprintf(' The number of genes with a log ratio with absolute value above 1 and p value less than 0.05 is %s', nrow(diffexpgenes))
+```
+
+```{r}
+diffexpgenes
+```
+
+```{r}
+#Create a new matrix or dataframe that contains the expression values from normvalues for just the diffexpgenes and call it diffexpvalues.
+diffexp_ID<-rownames(diffexpgenes)
+diffexpvalues<-normvalues[(diffexp_ID),]
+```
+
+
+```{r}
+head(diffexpvalues)
+
+```
+```{r}
+diffexpvalues_corr<-cor(t(diffexpvalues), method='pearson')
+diffexpvalues_dist<-as.dist(1-diffexpvalues_corr)
+diffexpvalues_clustering <- hclust(dist(diffexpvalues), method = "average")
+
+```
+```{r}
+plot(diffexpvalues_clustering, hang=-1, cex = 0.3)
+```
+
+```{r}
+#Cluster the differentially expressed genes using hierarchical clustering and use the cutree function to create 8 groups. How many genes are in each group?
+
+diffexpvalues_groups<-cutree(diffexpvalues_clustering, k=8)
+#The table below summarizes the number of genes in each group.
+table(diffexpvalues_groups)
+```
+
+```{r}
+#Create a heatmap of all the genes using the pheatmap package. Some options you should pay attention to are: - scale ( scaling gene values shows expression pattern changes rather than magnitude) - cluster_rows ( define how the rows should be clustered) - annotation_col ( color code the different samples based on a category- health or cf) - annotation_row ( color code the different genes based on the cluster they belong to)
+pheatmap(diffexpvalues_dist, color=colorRampPalette(c("white", "light pink", "purple"))(50), cutree_rows = 8,
+         cutree_cols = 8)
+```
+
+
+```{r}
+#Use the GOstats package to determing which GO-terms are enriched in diffexpgenes. To do this you will need to install the following packages from #Bioconductor:
+
+BiocManager::install("GOstats")
+BiocManager::install("GO.db")
+BiocManager::install("Category")
+BiocManager::install("org.Hs.eg.db")
+```
+
+```{r}
+#Now create a new GOHyperGParams object using the new() function and save it as variable called params. The geneIds is diffexpgenes. These should be the EntrezIDs we made into rownames in the beginning. The universeGeneIds is the rownames of readcount. The annotation is org.Hs.eg and the ontology we are going to use is BP with a pvaluecutoff of 0.001 and our testDirection is over.
+
+params=new("GOHyperGParams", 
+  geneIds=rownames(diffexpvalues), 
+  universeGeneIds=rownames(diffexpvalues), 
+  annotation="org.At.tair", 
+  ontology="BP", 
+  pvalueCutoff=0.001, 
+  conditional=TRUE, 
+  testDirection="over")
+```
+```{r}
+#What conclusions can you make about your analysis?
+```
+
+
 
