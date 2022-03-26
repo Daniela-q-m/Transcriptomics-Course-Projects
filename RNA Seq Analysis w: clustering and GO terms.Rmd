@@ -1,11 +1,11 @@
 ---
-title: "HW3-RNA-Seq Analysis w/ clustering and GO Enrichment"
+title: "HW3-RNA-Seq Analysis with clustering and GO Enrichment"
 output:
   html_document:
     df_print: paged
 ---
 
-
+Source for data: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE124548
 ```{r}
 install.packages("dplyr")
 ```
