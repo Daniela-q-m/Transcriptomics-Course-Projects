@@ -1,6 +1,8 @@
 ---
 title: "HW3-RNA-Seq Analysis w/ clustering and GO Enrichment"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
@@ -197,19 +199,181 @@ BiocManager::install("GO.db")
 BiocManager::install("Category")
 BiocManager::install("org.Hs.eg.db")
 ```
+```{r}
+BiocManager::install("org.At.tair.db")
+library(org.At.tair.db)
+```
 
 ```{r}
 #Now create a new GOHyperGParams object using the new() function and save it as variable called params. The geneIds is diffexpgenes. These should be the EntrezIDs we made into rownames in the beginning. The universeGeneIds is the rownames of readcount. The annotation is org.Hs.eg and the ontology we are going to use is BP with a pvaluecutoff of 0.001 and our testDirection is over.
+library(GOstats)
+library(GO.db)
+library(Category)
+library(org.Hs.eg.db)
 
 params=new("GOHyperGParams", 
-  geneIds=rownames(diffexpvalues), 
-  universeGeneIds=rownames(diffexpvalues), 
-  annotation="org.At.tair", 
+  geneIds=rownames(diffexpgenes), 
+  annotation="org.Hs.eg.db", 
   ontology="BP", 
-  pvalueCutoff=0.001, 
+  pvalueCutoff=0.05, 
   conditional=TRUE, 
   testDirection="over")
 ```
+```{r}
+overRepresentedBP=hyperGTest(params)
+
+```
+
+```{r}
+BiocManager::install("clusterProfiler")
+library(clusterProfiler)
+```
+
+
+```{r}
+overRepresentedBP
+```
+```{r}
+summaryGOBP<-summary(overRepresented)
+summaryGOBP
+```
+```{r}
+#Now running hypergeometric test for other two GO categories:
+#Cellular Component
+paramsCC=new("GOHyperGParams", 
+  geneIds=rownames(diffexpgenes), 
+  annotation="org.Hs.eg.db", 
+  ontology="CC", 
+  pvalueCutoff=0.05, 
+  conditional=TRUE, 
+  testDirection="over")
+#Molecular Function
+paramsMF=new("GOHyperGParams", 
+  geneIds=rownames(diffexpgenes), 
+  annotation="org.Hs.eg.db", 
+  ontology="MF", 
+  pvalueCutoff=0.05, 
+  conditional=TRUE, 
+  testDirection="over")
+```
+
+```{r}
+overRepresentedCC=hyperGTest(paramsCC)
+overRepresentedMF=hyperGTest(paramsMF)
+```
+```{r}
+summaryGOCC<-summary(overRepresentedCC)
+summaryGOCC
+```
+```{r}
+summaryGOMF<-summary(overRepresentedMF)
+summaryGOMF
+```
+```{r}
+#summaryGOMF<-summaryGOMF[order(summaryGOMF$Count, decreasing = TRUE), ]   
+summaryGOMF<-summaryGOMF[1:30,]
+```
+```{r}
+generatioMF<-summaryGOMF$Count/summaryGOMF$Size
+generatioMF<-generatioMF[1:30]
+```
+```{r}
+summaryGOMF$Gene_Ratio<-generatioMF
+
+```
+```{r}
+summaryGOMF
+```
+
+
+```{r}
+library(tidyverse)
+#want to avoid changing the original data, use fct_inorder from forcats (part of tidyverse) to keep the original order of the data along the x-axis (rather than it being changed to alphabetical).
+
+dotplot_MF<-ggplot(summaryGOMF, aes(x=reorder(Term, Gene_Ratio, mean), y=Gene_Ratio, color=Pvalue)) +
+  geom_point(aes(size = Count))+
+  coord_flip()+
+  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for molecular function")+
+  theme(plot.title = element_text(size=10,hjust=1))
+dotplot_MF
+```
+```{r}
+ 
+summaryGOCC<-summaryGOCC[1:30,]
+```
+```{r}
+generatioCC<-summaryGOCC$Count/summaryGOCC$Size
+generatioCC<-generatioCC[1:30]
+```
+```{r}
+summaryGOCC$Gene_Ratio<-generatioCC
+
+```
+```{r}
+summaryGOCC
+```
+```{r}
+
+library(tidyverse)
+#want to avoid changing the original data, use fct_inorder from forcats (part of tidyverse) to keep the original order of the data along the x-axis (rather than it being changed to alphabetical).
+
+dotplot_CC<-ggplot(summaryGOCC, aes(x=reorder(Term, Gene_Ratio, mean), y=Gene_Ratio, color=Pvalue)) +
+  geom_point(aes(size = Count))+
+  coord_flip()+
+  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for molecular function")+
+  theme(plot.title = element_text(size=10,hjust=1))
+dotplot_CC
+```
+```{r}
+ 
+summaryGOBP<-summaryGOBP[1:30,]
+```
+```{r}
+generatioBP<-summaryGOBP$Count/summaryGOBP$Size
+generatioBP<-generatioBP[1:30]
+```
+```{r}
+summaryGOBP$Gene_Ratio<-generatioBP
+
+```
+```{r}
+summaryGOBP
+```
+```{r}
+dotplot_BP<-ggplot(summaryGOBP, aes(x=reorder(Term, Gene_Ratio, mean), y=Gene_Ratio, color=Pvalue)) +
+  geom_point(aes(size = Count))+
+  coord_flip()+
+  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for molecular function")+
+  theme(plot.title = element_text(size=10,hjust=1))
+dotplot_BP
+```
+
+
+
+```{r}
+BiocManager::install("pathview")
+```
+```{r}
+BiocManager::install("AnnotationHub")
+
+```
+```{r}
+BiocManager::install("ensembldb")
+```
+```{r}
+BiocManager::install("DOSE")
+```
+
+
+```{r}
+library(pathview)
+library(clusterProfiler)
+library(AnnotationHub)
+library(ensembldb)
+library(tidyverse)
+```
+
+
 ```{r}
 #What conclusions can you make about your analysis?
 ```
