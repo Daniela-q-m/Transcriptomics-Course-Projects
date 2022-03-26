@@ -5,9 +5,7 @@ output:
     df_print: paged
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 ```{r}
 install.packages("dplyr")
 
@@ -294,7 +292,7 @@ dotplot_MF<-ggplot(summaryGOMF, aes(x=reorder(Term, Gene_Ratio, mean), y=Gene_Ra
   geom_point(aes(size = Count))+
   coord_flip()+
   scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for molecular function")+
-  theme(plot.title = element_text(size=10,hjust=1))
+  theme(plot.title = element_text(size=10,hjust=1))+
 dotplot_MF
 ```
 ```{r}
@@ -320,8 +318,8 @@ library(tidyverse)
 dotplot_CC<-ggplot(summaryGOCC, aes(x=reorder(Term, Gene_Ratio, mean), y=Gene_Ratio, color=Pvalue)) +
   geom_point(aes(size = Count))+
   coord_flip()+
-  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for molecular function")+
-  theme(plot.title = element_text(size=10,hjust=1))
+  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for cellular compartment")+
+  theme(plot.title = element_text(size=10,hjust=1))+labs(x ="GO Term", y = "Gene Ratio")
 dotplot_CC
 ```
 ```{r}
@@ -340,10 +338,16 @@ summaryGOBP$Gene_Ratio<-generatioBP
 summaryGOBP
 ```
 ```{r}
+GO_BP_Terms<-summaryGOBP$GOBPID
+GO_BP_Terms
+```
+
+
+```{r}
 dotplot_BP<-ggplot(summaryGOBP, aes(x=reorder(Term, Gene_Ratio, mean), y=Gene_Ratio, color=Pvalue)) +
   geom_point(aes(size = Count))+
   coord_flip()+
-  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for molecular function")+
+  scale_color_gradient2( low="magenta", mid="blue", high="pink")+theme_bw()+ggtitle("Top 30 enriched GO genes for biological process")+
   theme(plot.title = element_text(size=10,hjust=1))
 dotplot_BP
 ```
@@ -363,17 +367,7 @@ BiocManager::install("ensembldb")
 ```{r}
 BiocManager::install("DOSE")
 ```
-
-
-```{r}
-library(pathview)
-library(clusterProfiler)
-library(AnnotationHub)
-library(ensembldb)
-library(tidyverse)
-```
-
-
+### Using Gene
 ```{r}
 #What conclusions can you make about your analysis?
 ```
