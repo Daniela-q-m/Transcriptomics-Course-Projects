@@ -1,0 +1,189 @@
+---
+title: "Transcriptomics-Seurat Workflow-GSE111672"
+output: html_notebook
+---
+
+Dataset: GSE111672.
+Pancreatic ductal adenocarcinoma. This analysis focuses on one of the two samples in this study 
+
+Install Necessary Packages
+
+```{r}
+install.packages('patchwork')
+```
+
+```{r}
+library(dplyr)
+library(Seurat)
+library(patchwork)
+```
+Load the TSV file
+
+
+```{r}
+data=read.table(file = '/Users/danielaquijano/Documents/GitHub/Transcriptomics-Course-Projects/source_files/GSM3036909.tsv', sep = '\t', header = TRUE)
+```
+
+```{r}
+PDAC.seurat.obj <- CreateSeuratObject(counts = data, project = "PDAC", min.cells = 3, min.features = 200)
+```
+Label Mitochondrial genes
+```{r}
+PDAC.seurat.obj[["percent.mt"]] <- PercentageFeatureSet(PDAC.seurat.obj, pattern = "^MT-")
+head(PDAC.seurat.obj@meta.data)
+```
+View the number of counts, number of features, and the percent mitochondrial genes.
+```{r}
+VlnPlot(PDAC.seurat.obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+Keep the cells that have greater than 200 and less than 2500 unique features and the percent mitochondrial genes is less than 5.
+
+```{r}
+PDAC.seurat.obj <- subset(PDAC.seurat.obj, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 &  percent.mt < 5)
+```
+
+Normalize data using the LogNormaliza method with a scale factor of 10,000
+```{r}
+#Normalize Data
+PDAC.seurat.obj  <- NormalizeData(
+  PDAC.seurat.obj,
+  normalization.method = "LogNormalize",
+  scale.factor = 10000,
+  verbose = TRUE, )
+str(PDAC.seurat.obj)
+```
+
+Find the 2000 most variable genes using the FindVariableFeatures command using the vst method.
+```{r}
+PDAC.seurat.obj <- FindVariableFeatures(PDAC.seurat.obj, selection.method = "vst", nfeatures = 2000)
+```
+
+Scale data to normalize the standard deviation and center the data.
+```{r}
+all.genes <- rownames(PDAC.seurat.obj)
+PDAC.seurat.obj <- ScaleData(PDAC.seurat.obj, features = all.genes)
+```
+
+Perform Principal Component Analysis
+```{r}
+PDAC.seurat.obj <- RunPCA(PDAC.seurat.obj, features = VariableFeatures(object = PDAC.seurat.obj))
+```
+```{r}
+# visualize PCA results
+print(PDAC.seurat.obj[["pca"]], dims = 1:10)
+```
+```{r}
+for (i in 1:10) {
+  DimHeatmap(PDAC.seurat.obj, dims = i, cells = 500, balanced = TRUE)
+}
+
+```
+Visualize data using VizDimLoadings and DimPlot functions. Can you tell from the PCA analyis, the number of cell types that are present?
+```{r}
+VizDimLoadings(PDAC.seurat.obj, dims = 1:2, reduction = "pca")
+```
+
+```{r}
+VizDimLoadings(PDAC.seurat.obj, dims = 3:4, reduction = "pca")
+```
+```{r}
+VizDimLoadings(PDAC.seurat.obj, dims = 5:6, reduction = "pca")
+```
+```{r}
+VizDimLoadings(PDAC.seurat.obj, dims = 7:8, reduction = "pca")
+```
+```{r}
+VizDimLoadings(PDAC.seurat.obj, dims = 9:10, reduction = "pca")
+```
+```{r}
+DimPlot(PDAC.seurat.obj, reduction = "pca")
+```
+
+Find when does the variation reaches the lowest amount of variation explained. Using the JackStraw method with 100 replicates and score the first 20 dimensions.
+
+```{r}
+PDAC.seurat.obj <- JackStraw(PDAC.seurat.obj, num.replicate = 100)
+PDAC.seurat.obj <- ScoreJackStraw(PDAC.seurat.obj, dims = 1:20)
+```
+
+Plot the results for the first 20 dimensions.
+
+```{r}
+JackStrawPlot(PDAC.seurat.obj, dims = 1:20)
+
+```
+
+Use the elbow plot
+```{r}
+ElbowPlot(PDAC.seurat.obj)
+```
+Now we will group together the cells based on where they are located in the different dimensions. Use the FindNeighbors function using the first 9 dimensions.
+
+```{r}
+# 7. Clustering ------------
+PDAC.seurat.obj<- FindNeighbors(PDAC.seurat.obj, dims = 1:9)
+```
+
+And then identify the clusters usng the FindClusters function.
+
+```{r}
+PDAC.seurat.obj <- FindClusters(PDAC.seurat.obj, resolution = c(0.1,0.3, 0.5, 0.7, 1))
+head(PDAC.seurat.obj@meta.data)
+```
+
+Perform a UMAP analysis using the first 9 dimensions using RunUMAP and then visualize it using DimPlot.
+
+```{r}
+PDAC.seurat.obj <- RunUMAP(PDAC.seurat.obj, dims = 1:15)
+
+DimPlot(PDAC.seurat.obj, reduction = "umap")
+```
+
+Step 14: Identify the markers that compare each cluster against all. Report only positively markers. Use the FindAllMarkers for this.
+
+```{r}
+cluster5.markers <- FindMarkers(PDAC.seurat.obj, ident.1 = 5, ident.2 = c(0, 8), min.pct = 0.25)
+head(cluster5.markers, n = 5)
+```
+
+Step 15: Create a violin plot using one feature from each cluster.
+
+```{r}
+PDAC.markers <- FindAllMarkers(PDAC.seurat.obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)%>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+PDAC.markers
+```
+```{r}
+VlnPlot(PDAC.seurat.obj, features=c("6649","14046"))
+```
+
+```{r}
+VlnPlot(PDAC.seurat.obj, features=c("10632", "4231"))
+```
+```{r}
+VlnPlot(PDAC.seurat.obj, features=c("5128","12925"))
+```
+
+
+```{r}
+genes_list = c("10632", "4231","6649","14046", "5128","12925","3135", "	7771", "2136")
+
+VlnPlot(PDAC.seurat.obj, features=c("3135", "7771", "2136"))
+
+```
+
+Create a feature plot using the same features as before.
+
+```{r}
+FeaturePlot(PDAC.seurat.obj, features=c("6649","14046"))
+
+```
+```{r}
+FeaturePlot(PDAC.seurat.obj, features=c("10632", "4231"))
+```
+```{r}
+FeaturePlot(PDAC.seurat.obj, features=c("5128","12925"))
+```
+```{r}
+FeaturePlot(PDAC.seurat.obj, features=c("3135", "7771", "2136"))
+```
+
