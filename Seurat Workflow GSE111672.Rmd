@@ -2,6 +2,8 @@
 title: "Transcriptomics-Seurat Workflow-GSE111672"
 output: html_notebook
 ---
+Daniela Q. 
+Transcriptomics Course
 
 Dataset: GSE111672.
 Pancreatic ductal adenocarcinoma. This analysis focuses on one of the two samples in this study 
@@ -17,8 +19,13 @@ library(dplyr)
 library(Seurat)
 library(patchwork)
 ```
-Load the TSV file
+```{r}
+library(ggplot2)
+```
 
+
+
+Load the TSV file
 
 ```{r}
 data=read.table(file = '/Users/danielaquijano/Documents/GitHub/Transcriptomics-Course-Projects/source_files/GSM3036909.tsv', sep = '\t', header = TRUE)
@@ -65,6 +72,8 @@ PDAC.seurat.obj <- ScaleData(PDAC.seurat.obj, features = all.genes)
 ```
 
 Perform Principal Component Analysis
+
+Based on the PCA, it seems that there are two main clusters of data (based on DimPlot)
 ```{r}
 PDAC.seurat.obj <- RunPCA(PDAC.seurat.obj, features = VariableFeatures(object = PDAC.seurat.obj))
 ```
@@ -78,6 +87,9 @@ for (i in 1:10) {
 }
 
 ```
+
+
+
 Visualize data using VizDimLoadings and DimPlot functions. Can you tell from the PCA analyis, the number of cell types that are present?
 ```{r}
 VizDimLoadings(PDAC.seurat.obj, dims = 1:2, reduction = "pca")
@@ -117,73 +129,70 @@ Use the elbow plot
 ```{r}
 ElbowPlot(PDAC.seurat.obj)
 ```
-Now we will group together the cells based on where they are located in the different dimensions. Use the FindNeighbors function using the first 9 dimensions.
+Group together the cells based on where they are located in the different dimensions. Use the FindNeighbors function using the first 9 dimensions.
 
 ```{r}
 # 7. Clustering ------------
 PDAC.seurat.obj<- FindNeighbors(PDAC.seurat.obj, dims = 1:9)
 ```
 
-And then identify the clusters usng the FindClusters function.
+Identify the clusters usng the FindClusters function.
 
 ```{r}
-PDAC.seurat.obj <- FindClusters(PDAC.seurat.obj, resolution = c(0.1,0.3, 0.5, 0.7, 1))
+PDAC.seurat.obj <- FindClusters(PDAC.seurat.obj)
 head(PDAC.seurat.obj@meta.data)
 ```
 
 Perform a UMAP analysis using the first 9 dimensions using RunUMAP and then visualize it using DimPlot.
 
+Here UJMAP was done on the fist 9 dimensions (dims=1:9) and there are 9 clusters assigned in total. There are some samples in clsuter 6 that seem to not belong and some ambiguously assigned samples in between clusters 7 and 2 and in the top right 'cluster of clusters' there seems to be some ambiguous assignment as well. 
+
 ```{r}
-PDAC.seurat.obj <- RunUMAP(PDAC.seurat.obj, dims = 1:15)
+PDAC.seurat.obj <- RunUMAP(PDAC.seurat.obj, dims = 1:9)
 
 DimPlot(PDAC.seurat.obj, reduction = "umap")
 ```
 
-Step 14: Identify the markers that compare each cluster against all. Report only positively markers. Use the FindAllMarkers for this.
+Identify the markers that compare each cluster against all. Report only positively markers (only.pos=TRUE). Using FindAllMarkers.
 
 ```{r}
-cluster5.markers <- FindMarkers(PDAC.seurat.obj, ident.1 = 5, ident.2 = c(0, 8), min.pct = 0.25)
-head(cluster5.markers, n = 5)
-```
-
-Step 15: Create a violin plot using one feature from each cluster.
-
-```{r}
-PDAC.markers <- FindAllMarkers(PDAC.seurat.obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)%>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
-PDAC.markers
-```
-```{r}
-VlnPlot(PDAC.seurat.obj, features=c("6649","14046"))
-```
-
-```{r}
-VlnPlot(PDAC.seurat.obj, features=c("10632", "4231"))
-```
-```{r}
-VlnPlot(PDAC.seurat.obj, features=c("5128","12925"))
+PDAC.markers <- FindAllMarkers(PDAC.seurat.obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+PDAC.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
 ```
 
 
-```{r}
-genes_list = c("10632", "4231","6649","14046", "5128","12925","3135", "	7771", "2136")
 
-VlnPlot(PDAC.seurat.obj, features=c("3135", "7771", "2136"))
+Create a violin plot using one feature from each cluster.
+
+```{r}
+genes_list = c("16289", "10632","4231","6649", "12925","3135","7771", "2136")
 
 ```
+
+```{r}
+VlnPlot(PDAC.seurat.obj, features=c("16289", "10632","4231"))
+```
+
+```{r}
+VlnPlot(PDAC.seurat.obj, features=c("6649", "12925","3135"))
+```
+```{r}
+VlnPlot(PDAC.seurat.obj, features=c("7771", "2136"))
+```
+
+
 
 Create a feature plot using the same features as before.
 
 ```{r}
-FeaturePlot(PDAC.seurat.obj, features=c("6649","14046"))
+FeaturePlot(PDAC.seurat.obj, features=c("16289", "10632","4231"))
 
 ```
 ```{r}
-FeaturePlot(PDAC.seurat.obj, features=c("10632", "4231"))
+FeaturePlot(PDAC.seurat.obj, features=c("6649", "12925","3135"))
 ```
 ```{r}
-FeaturePlot(PDAC.seurat.obj, features=c("5128","12925"))
+FeaturePlot(PDAC.seurat.obj, features=c("7771", "2136"))
 ```
-```{r}
-FeaturePlot(PDAC.seurat.obj, features=c("3135", "7771", "2136"))
-```
+
 
